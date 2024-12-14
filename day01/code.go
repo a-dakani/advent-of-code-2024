@@ -2,6 +2,7 @@ package day01
 
 import (
 	"bufio"
+	"errors"
 	"log"
 	"os"
 	"slices"
@@ -10,7 +11,10 @@ import (
 )
 
 func solvePartOne() int {
-	firstList, secondList := readInputFile("input.txt")
+	firstList, secondList, err := readInputLists("input.txt")
+	if err != nil {
+		log.Fatalf("couldn't read input file: %v", err)
+	}
 
 	slices.Sort(firstList)
 	slices.Sort(secondList)
@@ -29,7 +33,10 @@ func solvePartOne() int {
 
 func solvePartTwo() int {
 	similarityScore := 0
-	firstList, secondList := readInputFile("input.txt")
+	firstList, secondList, err := readInputLists("input.txt")
+	if err != nil {
+		log.Fatalf("couldn't read input file: %v", err)
+	}
 
 	for _, s := range firstList {
 		recur := 0
@@ -43,10 +50,10 @@ func solvePartTwo() int {
 	return similarityScore
 }
 
-func readInputFile(fileName string) ([]int, []int) {
+func readInputLists(fileName string) ([]int, []int, error) {
 	file, err := os.Open(fileName)
 	if err != nil {
-		log.Fatalf("couldn't read input file: %v", err)
+		return nil, nil, err
 	}
 	defer file.Close()
 
@@ -56,21 +63,21 @@ func readInputFile(fileName string) ([]int, []int) {
 		line := scanner.Text()
 		numbers := strings.Fields(line)
 		if len(numbers) != 2 {
-			log.Fatalf("input has unexpected format: %s", line)
+			return nil, nil, errors.New("input has unexpected data types")
 		}
 		num1, err1 := strconv.Atoi(numbers[0])
 		num2, err2 := strconv.Atoi(numbers[1])
 		if err1 != nil || err2 != nil {
-			log.Fatalf("input has unexpected data types: %s", line)
+			return nil, nil, errors.New("input has unexpected data types")
 		}
 		firstList = append(firstList, num1)
 		secondList = append(secondList, num2)
 	}
-	if err := scanner.Err(); err != nil {
-		log.Fatalf("error reading file: %v", err)
+	if scannerErr := scanner.Err(); scannerErr != nil {
+		return nil, nil, scannerErr
 	}
 
-	return firstList, secondList
+	return firstList, secondList, nil
 }
 
 func diff(a, b int) int {

@@ -2,7 +2,7 @@
 
 test:
 	@echo "Running tests..."
-	@go test -v ./...
+	@go test -v -count=1 -timeout 30s ./...
 
 fmt:
 	@echo "Formatting Go files"
