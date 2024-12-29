@@ -2,22 +2,33 @@ package day06
 
 import (
 	"bufio"
-	"errors"
-	"fmt"
 	"log"
 	"os"
 )
 
-type direction rune
+type direction coordinates
 
-const (
-	up    direction = '^'
-	down  direction = 'v'
-	left  direction = '<'
-	right direction = '>'
+var (
+	up    = direction{0, -1}
+	down  = direction{0, 1}
+	right = direction{1, 0}
+	left  = direction{-1, 0}
 )
+
+type coordinates struct {
+	x, y int
+}
+
+type step struct {
+	coordinates
+	direction
+}
+
+type path []step
+
 const obstacle = '#'
-const tracePosition = 'X'
+const emptySpave = '.'
+const guard = '^'
 
 func solvePartOne() int {
 
@@ -25,165 +36,149 @@ func solvePartOne() int {
 	if err != nil {
 		log.Fatalf("couldn't read input file: %v", err)
 	}
-	x, y, err := findGuard(guardMap)
-	if err != nil {
-		panic(err)
+
+	startPosition := getGuardStartPosition(guardMap)
+
+	route, _ := walkTheMapUntilOutOfRange(guardMap, startPosition)
+
+	uniqueCoordinates := make(map[coordinates]struct{})
+	for _, s := range route {
+		uniqueCoordinates[s.coordinates] = struct{}{}
 	}
 
-	finalMap := guardMap
-	for {
-		newX, newY, newMap, existed := guardWalk(guardMap, x, y)
-
-		if existed {
-			break
-		}
-		x, y, guardMap = newX, newY, newMap
-	}
-
-	return calculateDistinctPositions(finalMap)
-}
-
-func calculateDistinctPositions(finalMap [][]rune) int {
-	//	Calculate the number of distinct positions
-	distinctPositions := 0
-	for _, row := range finalMap {
-		for _, elem := range row {
-			if elem == tracePosition {
-				distinctPositions++
-			}
-		}
-	}
-	//add one to account for the last position before exiting
-	return distinctPositions + 1
-}
-
-func printGuardMap(guardMap [][]rune) {
-	for _, row := range guardMap {
-		for _, elem := range row {
-			fmt.Printf("%c ", elem)
-		}
-		fmt.Println()
-	}
-	fmt.Println("----------------------")
-}
-
-func guardWalk(guardMap [][]rune, x int, y int) (int, int, [][]rune, bool) {
-	guard := guardMap[y][x]
-	if direction(guard) == up {
-		return walkUp(guardMap, x, y)
-	}
-	if direction(guard) == down {
-		return walkDown(guardMap, x, y)
-	}
-	if direction(guard) == left {
-		return walkLeft(guardMap, x, y)
-	}
-	if direction(guard) == right {
-		return walkRight(guardMap, x, y)
-	}
-	return -1, -1, nil, false
-}
-
-func walkRight(guardMap [][]rune, x int, y int) (int, int, [][]rune, bool) {
-	for ix := x; ix < len(guardMap[y]); ix++ {
-		if ix == len(guardMap[y])-1 {
-			moveGuard(x, y, ix, y, guardMap)
-			return ix, y, guardMap, true
-		}
-		if guardMap[y][ix+1] == obstacle {
-			rotateGuardNinetyDegrees(ix, y, guardMap)
-			return ix, y, guardMap, false
-		}
-		traceGuardPosition(ix, y, ix+1, y, guardMap)
-	}
-	return -1, -1, nil, false
-
-}
-
-func walkLeft(guardMap [][]rune, x int, y int) (int, int, [][]rune, bool) {
-	for ix := x; ix >= 0; ix-- {
-		if ix == 0 {
-			moveGuard(x, y, ix, y, guardMap)
-			return ix, y, guardMap, true
-		}
-		if guardMap[y][ix-1] == obstacle {
-			rotateGuardNinetyDegrees(ix, y, guardMap)
-			return ix, y, guardMap, false
-		}
-		traceGuardPosition(ix, y, ix-1, y, guardMap)
-	}
-	return -1, -1, nil, false
-}
-
-func walkDown(guardMap [][]rune, x int, y int) (int, int, [][]rune, bool) {
-	for iy := y; iy < len(guardMap); iy++ {
-		if iy == len(guardMap)-1 {
-			moveGuard(x, y, x, iy, guardMap)
-			return x, iy, guardMap, true
-		}
-		if guardMap[iy+1][x] == obstacle {
-			rotateGuardNinetyDegrees(x, iy, guardMap)
-			return x, iy, guardMap, false
-		}
-		traceGuardPosition(x, iy, x, iy+1, guardMap)
-	}
-	return -1, -1, nil, false
-
-}
-
-func walkUp(guardMap [][]rune, x int, y int) (int, int, [][]rune, bool) {
-	for iy := y; iy >= 0; iy-- {
-		if iy == 0 {
-			moveGuard(x, y, x, iy, guardMap)
-			return x, iy, guardMap, true
-		}
-		if guardMap[iy-1][x] == obstacle {
-			rotateGuardNinetyDegrees(x, iy, guardMap)
-			return x, iy, guardMap, false
-		}
-		traceGuardPosition(x, iy, x, iy-1, guardMap)
-	}
-	return -1, -1, nil, false
-}
-
-func traceGuardPosition(fromX int, fromY, toX, toY int, guardMap [][]rune) {
-	guardMap[toY][toX] = guardMap[fromY][fromX]
-	guardMap[fromY][fromX] = tracePosition
-}
-
-func rotateGuardNinetyDegrees(x int, y int, guardMap [][]rune) {
-	switch guardMap[y][x] {
-	case rune(up):
-		guardMap[y][x] = rune(right)
-	case rune(down):
-		guardMap[y][x] = rune(left)
-	case rune(left):
-		guardMap[y][x] = rune(up)
-	case rune(right):
-		guardMap[y][x] = rune(down)
-	default:
-		panic("invalid guard direction")
-	}
-}
-
-func moveGuard(oldX, oldY, newX, newY int, guardMap [][]rune) {
-	guardMap[oldY][oldX], guardMap[newY][newX] = guardMap[newY][newX], guardMap[oldY][oldX]
-}
-
-func findGuard(guardMap [][]rune) (int, int, error) {
-	for i, line := range guardMap {
-		for k, position := range line {
-			if position == rune(up) || position == rune(down) || position == rune(left) || position == rune(right) {
-				return k, i, nil
-			}
-		}
-	}
-	return -1, -1, errors.New("guard not found")
-
+	return len(uniqueCoordinates)
 }
 
 func solvePartTwo() int {
-	return 0
+
+	guardMap, err := readTextLines("input.txt")
+	if err != nil {
+		log.Fatalf("couldn't read input file: %v", err)
+	}
+
+	guardCoordinates := findRune(guardMap, guard)
+	if len(guardCoordinates) != 1 {
+		log.Fatalf("unexpected number of start coordinates in the map")
+	}
+
+	startPoint := guardCoordinates[0]
+	startPosition := step{
+		coordinates: startPoint,
+		direction:   up,
+	}
+
+	route, _ := walkTheMapUntilOutOfRange(guardMap, startPosition)
+
+	possibleLoopCoordinates := findPossibleLoopCoordinates(guardMap, route)
+
+	uniqueCoordinates := make(map[coordinates]struct{})
+	for _, s := range possibleLoopCoordinates {
+		uniqueCoordinates[s] = struct{}{}
+	}
+
+	return len(uniqueCoordinates)
+}
+
+func walkTheMapUntilOutOfRange(guardMap [][]rune, startPosition step) (path, bool) {
+
+	inLoop := false
+	var route path
+	visited := make(map[step]struct{})
+
+	route = append(route, startPosition)
+
+	for {
+		lastStep := route[len(route)-1]
+		nextStep, outOfRange := getNextStepOrOutOfRange(guardMap, lastStep)
+		if outOfRange {
+			break
+		}
+		if _, ok := visited[nextStep]; ok {
+			inLoop = true
+			break
+		}
+		visited[nextStep] = struct{}{}
+		route = append(route, nextStep)
+	}
+
+	return route, inLoop
+}
+
+func getNextStepOrOutOfRange(guardMap [][]rune, lastStep step) (step, bool) {
+	nextX := lastStep.coordinates.x + lastStep.direction.x
+	nextY := lastStep.coordinates.y + lastStep.direction.y
+
+	if nextX < 0 || nextX >= len(guardMap[0]) || nextY < 0 || nextY >= len(guardMap) {
+		return step{}, true
+	}
+
+	if guardMap[nextY][nextX] == obstacle {
+		switch lastStep.direction {
+		case up:
+			lastStep.direction = right
+		case right:
+			lastStep.direction = down
+		case down:
+			lastStep.direction = left
+		case left:
+			lastStep.direction = up
+		}
+		return getNextStepOrOutOfRange(guardMap, lastStep)
+	}
+
+	return step{
+		coordinates: coordinates{nextX, nextY},
+		direction:   lastStep.direction,
+	}, false
+}
+
+func findPossibleLoopCoordinates(guardMap [][]rune, route path) []coordinates {
+
+	startPosition := getGuardStartPosition(guardMap)
+
+	var possibleLoopCoordinates []coordinates
+	for i, s := range route {
+		if i == 0 {
+			continue
+		}
+
+		guardMap[s.coordinates.y][s.coordinates.x] = obstacle
+
+		_, isInLoop := walkTheMapUntilOutOfRange(guardMap, startPosition)
+
+		if isInLoop {
+			possibleLoopCoordinates = append(possibleLoopCoordinates, s.coordinates)
+		}
+
+		guardMap[s.coordinates.y][s.coordinates.x] = emptySpave
+	}
+
+	return possibleLoopCoordinates
+}
+
+func findRune(data [][]rune, searchable rune) []coordinates {
+	var found []coordinates
+	for y, line := range data {
+		for x, r := range line {
+			if r == searchable {
+				found = append(found, coordinates{x, y})
+			}
+		}
+	}
+	return found
+}
+
+func getGuardStartPosition(guardMap [][]rune) step {
+	guardCoordinates := findRune(guardMap, guard)
+	if len(guardCoordinates) != 1 {
+		log.Fatalf("unexpected number of start coordinates in the map")
+	}
+	startPoint := guardCoordinates[0]
+
+	return step{
+		coordinates: startPoint,
+		direction:   up,
+	}
 }
 
 func readTextLines(fileName string) ([][]rune, error) {
